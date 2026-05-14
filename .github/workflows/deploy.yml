@@ -3,7 +3,6 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: 'main'
-  # Добавляем возможность ручного запуска из вкладки Actions
   workflow_dispatch:
 
 permissions:
@@ -11,7 +10,6 @@ permissions:
   pages: write
   id-token: write
 
-# Отменяет старые запуски, если ты сделал новый пуш до завершения предыдущего
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -19,9 +17,6 @@ concurrency:
 jobs:
   build_site:
     runs-on: ubuntu-latest
-    env:
-      # Устраняем предупреждение о версии Node.js для самих действий GitHub
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -33,14 +28,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        # Используем ci для более стабильной установки в CI-среде
-        run: npm ci || npm install
+        run: npm install
 
       - name: Build
-        # Передаем секрет из настроек GitHub в процесс сборки Vite
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
-        # Добавляем флаг, чтобы билд не падал из-за мелких предупреждений линтера, если они есть
         run: npm run build
 
       - name: Upload Artifacts

@@ -1,12 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
-/**
- * Конфигурация Vite для корректной сборки React-приложения.
- * Параметр base необходим для правильной работы ссылок на GitHub Pages.
- */
 export default defineConfig({
-  plugins: [react()],
-  // Замени на '/f1-fan-site/', если имя твоего репозитория отличается
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
   base: '/f1-fan-site/', 
 })
