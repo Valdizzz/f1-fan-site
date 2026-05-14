@@ -3,6 +3,8 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: 'main'
+  # Добавляем возможность ручного запуска из вкладки Actions
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -26,7 +28,7 @@ jobs:
         run: npm install
 
       - name: Build
-        # ТЕПЕРЬ МЫ ПЕРЕДАЕМ СЕКРЕТ В ПРОЦЕСС СБОРКИ
+        # ПЕРЕДАЕМ СЕКРЕТ В ПРОЦЕСС СБОРКИ
         env:
           VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY }}
         run: npm run build
