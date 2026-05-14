@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState } from 'react';
 import { ChevronDown, Trophy, Camera, Eye, EyeOff, Upload, X, RefreshCw, Zap } from 'lucide-react';
 
@@ -10,7 +11,7 @@ const App = () => {
   const [error, setError] = useState(null);
   const [showUI, setShowUI] = useState(true);
   
-  // Достаем ключ. Если его нет, приложение выдаст ошибку конфигурации
+  // КЛЮЧ БЕРЕТСЯ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ (Безопасно для GitHub Pages)
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
 
   const achievements = [
@@ -41,10 +42,11 @@ const App = () => {
     setIsGenerating(true);
     setError(null);
     
-    const prompt = "High-quality realistic photo. The woman from the attached portrait is standing next to George Russell. Both are wearing black Mercedes-AMG Petronas F1 team shirts and smiling. Paddock background, cinematic lighting.";
+    // Промпт оптимизирован для высокой точности лица
+    const prompt = "A high-quality realistic close-up portrait where the man from the attached photo is standing next to Formula 1 driver George Russell in the Mercedes garage. Both are wearing black official Mercedes-AMG Petronas F1 team shirts, smiling directly at the camera. Professional cinematic lighting, extremely accurate facial features maintenance for the man.";
 
     try {
-      // Используем модель gemini-1.5-flash — она самая быстрая и стабильная для таких задач
+      // Используем модель gemini-1.5-flash — она стабильна и быстра
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,7 +73,7 @@ const App = () => {
         setImageUrl(`data:image/png;base64,${base64}`);
         setImageGenerated(true);
       } else {
-        setError("Модель не вернула изображение. Попробуйте другое фото.");
+        setError("Модель не вернула изображение. Попробуйте другое селфи.");
       }
     } catch (err) {
       console.error(err);
@@ -89,31 +91,32 @@ const App = () => {
             <img src={imageUrl} className="w-full h-full object-cover object-top transition-transform duration-700" style={{ transform: showUI ? 'scale(1)' : 'scale(1.05)' }} />
           ) : (
             <div className="w-full h-full bg-[#080808] flex items-center justify-center">
+                <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
                 <Zap className="text-[#00A19B]/20 animate-pulse" size={100} />
             </div>
           )}
-          <div className={`absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/30 to-transparent transition-opacity ${showUI ? 'opacity-100' : 'opacity-0'}`} />
+          <div className={`absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent transition-opacity ${showUI ? 'opacity-100' : 'opacity-0'}`} />
         </div>
 
         {imageGenerated && (
           <div className="absolute top-6 right-6 z-50 flex gap-3">
-             <button onClick={() => { setImageGenerated(false); setImageUrl(null); }} className="p-3 bg-black/40 backdrop-blur-md rounded-full hover:bg-white/10"><RefreshCw size={20} /></button>
-             <button onClick={() => setShowUI(!showUI)} className="p-3 bg-black/40 backdrop-blur-md rounded-full hover:bg-white/10">{showUI ? <EyeOff size={20} /> : <Eye size={20} />}</button>
+             <button onClick={() => { setImageGenerated(false); setImageUrl(null); }} className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full hover:bg-white/20 transition-all"><RefreshCw size={20} /></button>
+             <button onClick={() => setShowUI(!showUI)} className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-full hover:bg-white/20 transition-all">{showUI ? <EyeOff size={20} /> : <Eye size={20} />}</button>
           </div>
         )}
 
-        <div className={`relative z-10 w-full transition-all px-6 pb-20 ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
+        <div className={`relative z-10 w-full transition-all duration-700 px-6 pb-20 ${showUI ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 pointer-events-none'}`}>
           <div className="max-w-5xl mx-auto">
             {!imageGenerated ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                 <div className="space-y-6">
-                    <h1 className="text-5xl md:text-7xl font-black italic uppercase leading-none">Mercedes <br /><span className="text-[#00A19B]">Fan Lab</span></h1>
-                    <p className="text-gray-400">Окажись в одной команде с Джорджем Расселом.</p>
+                    <h1 className="text-5xl md:text-7xl font-black italic leads-none uppercase">Mercedes <br /><span className="text-[#00A19B]">Fan Lab</span></h1>
+                    <p className="text-gray-400 text-lg">Загрузи селфи и окажись в боксах Mercedes вместе с Джорджем Расселом.</p>
                 </div>
                 <div className="bg-white/5 border border-white/10 p-8 rounded-3xl backdrop-blur-xl">
                     {!userPhoto ? (
-                        <label className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-[#00A19B]/30 rounded-2xl cursor-pointer hover:border-[#00A19B] transition-all">
-                            <Upload className="text-gray-500 mb-4" size={40} />
+                        <label className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-[#00A19B]/30 rounded-2xl cursor-pointer hover:border-[#00A19B] transition-all group">
+                            <Upload className="text-gray-500 mb-4 group-hover:text-[#00A19B]" size={40} />
                             <span className="text-gray-400 font-medium">Выбери селфи</span>
                             <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
                         </label>
@@ -124,13 +127,13 @@ const App = () => {
                         </div>
                     )}
                     <button onClick={generateFanPhoto} disabled={isGenerating || !userPhoto} className="w-full mt-6 py-5 bg-[#00A19B] text-white font-bold rounded-2xl hover:scale-105 active:scale-95 transition-all disabled:opacity-30 flex justify-center items-center gap-3">
-                        {isGenerating ? 'Создаем фото...' : 'СОЗДАТЬ ФОТО'} <Camera size={22} />
+                        {isGenerating ? 'В боксах...' : 'СОЗДАТЬ ФОТО'} <Camera size={22} />
                     </button>
-                    {error && <p className="text-red-400 text-center mt-4 text-xs italic font-medium">{error}</p>}
+                    {error && <p className="text-red-400 text-center mt-4 text-xs font-medium">{error}</p>}
                 </div>
               </div>
             ) : (
-              <div className="space-y-4 text-center md:text-left">
+              <div className="space-y-4">
                 <h1 className="text-6xl md:text-9xl font-black italic uppercase leading-none">Perfect <br /><span className="text-[#00A19B]">Teammate.</span></h1>
                 <ChevronDown size={32} className="text-[#00A19B] animate-bounce mt-10 hidden md:block" />
               </div>
