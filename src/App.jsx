@@ -11,7 +11,7 @@ const App = () => {
   const [error, setError] = useState(null);
 
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-  const imageModel = "gemini-2.5-flash-image";
+  const imageModel = "gemini-2.0-flash-preview-image-generation";
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
@@ -85,6 +85,10 @@ const App = () => {
       const result = await response.json();
 
       if (!response.ok) {
+        if (response.status === 429 || result.error?.status === "RESOURCE_EXHAUSTED") {
+          throw new Error("Превышена квота Gemini API. Подождите минуту и попробуйте снова. Если ошибка повторяется, проверьте лимиты в AI Studio или включите billing для проекта.");
+        }
+
         throw new Error(result.error?.message || "Ошибка API");
       }
 
