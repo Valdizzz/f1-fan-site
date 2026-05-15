@@ -1,54 +1,85 @@
-import React, { useState } from 'react';
-import { Camera, RefreshCw, Zap, Upload, X, ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { RefreshCw, Upload, X } from 'lucide-react';
 
 const App = () => {
   const [imageGenerated, setImageGenerated] = useState(false);
   const [imageUrl, setImageUrl] = useState(null);
   const [userPhoto, setUserPhoto] = useState(null);
   const [userPhotoBase64, setUserPhotoBase64] = useState(null);
+  const [userPhotoMimeType, setUserPhotoMimeType] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState(null);
 
-  // Получаем ключ из Secrets (Vite автоматически подставит его при сборке на GitHub)
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "";
+  const imageModel = "gemini-2.5-flash-image";
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUserPhoto(reader.result);
-        setUserPhotoBase64(reader.result.split(',')[1]);
-      };
-      reader.readAsDataURL(file);
+
+    if (!file) {
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setUserPhoto(reader.result);
+      setUserPhotoBase64(reader.result.split(',')[1]);
+      setUserPhotoMimeType(file.type || "image/png");
+      setImageGenerated(false);
+      setImageUrl(null);
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const resetUpload = () => {
+    setUserPhoto(null);
+    setUserPhotoBase64(null);
+    setUserPhotoMimeType(null);
+    setImageGenerated(false);
+    setImageUrl(null);
+    setError(null);
   };
 
   const generateFanPhoto = async () => {
     if (!apiKey) {
-      setError("Критическая ошибка: API ключ не найден в настройках GitHub.");
+      setError("API ключ не найден. Добавьте VITE_GEMINI_API_KEY в .env.local для локального запуска или в GitHub Secrets для сборки.");
       return;
     }
-    
+
+    if (!userPhotoBase64) {
+      setError("Сначала загрузите фото.");
+      return;
+    }
+
     setIsGenerating(true);
     setError(null);
-    
-    // Промпт для создания совместного фото
+
     const prompt = "Create a high-quality realistic photo. The person from the attached portrait should be standing next to George Russell in the Mercedes F1 paddock. Both are wearing black Mercedes team shirts and smiling. Professional lighting.";
 
     try {
-      // ИСПОЛЬЗУЕМ СТАБИЛЬНУЮ ВЕРСИЮ v1
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${imageModel}:generateContent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey,
+        },
         body: JSON.stringify({
           contents: [{
             parts: [
               { text: prompt },
-              { inlineData: { mimeType: "image/png", data: userPhotoBase64 } }
-            ]
-          }]
-        })
+              {
+                inline_data: {
+                  mime_type: userPhotoMimeType || "image/png",
+                  data: userPhotoBase64,
+                },
+              },
+            ],
+          }],
+          generationConfig: {
+            responseModalities: ["TEXT", "IMAGE"],
+          },
+        }),
       });
 
       const result = await response.json();
@@ -57,19 +88,19 @@ const App = () => {
         throw new Error(result.error?.message || "Ошибка API");
       }
 
-      // Проверяем, пришло ли изображение (inlineData) в ответе
-      const base64 = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData?.data;
-      
-      if (base64) {
-        setImageUrl(`data:image/png;base64,${base64}`);
+      const imagePart = result.candidates?.[0]?.content?.parts?.find((part) => part.inlineData || part.inline_data);
+      const inlineData = imagePart?.inlineData || imagePart?.inline_data;
+
+      if (inlineData?.data) {
+        setImageUrl(`data:${inlineData.mimeType || inlineData.mime_type || "image/png"};base64,${inlineData.data}`);
         setImageGenerated(true);
       } else {
-        // Если модель прислала только текст вместо картинки
-        setError("Модель вернула текст вместо фото. Возможно, ваш ключ не поддерживает генерацию изображений через этот эндпоинт.");
-        console.warn("Текстовый ответ AI:", result.candidates?.[0]?.content?.parts?.[0]?.text);
+        const textResponse = result.candidates?.[0]?.content?.parts?.find((part) => part.text)?.text;
+        setError(textResponse || "Модель не вернула изображение. Проверьте доступ ключа к Gemini image generation.");
+        console.warn("Ответ Gemini без изображения:", result);
       }
     } catch (err) {
-      setError(`ОШИБКА: ${err.message}`);
+      setError(`Ошибка: ${err.message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -96,17 +127,18 @@ const App = () => {
             ) : (
               <div className="relative group">
                 <img src={userPhoto} className="h-72 w-full object-cover rounded-3xl border-2 border-[#00A19B]/50" alt="Preview" />
-                <button 
-                  onClick={() => {setUserPhoto(null); setUserPhotoBase64(null);}} 
+                <button
+                  onClick={resetUpload}
                   className="absolute top-4 right-4 p-2 bg-black/60 rounded-full hover:bg-red-500 transition-colors"
+                  aria-label="Удалить фото"
                 >
                   <X size={20} />
                 </button>
               </div>
             )}
 
-            <button 
-              onClick={generateFanPhoto} 
+            <button
+              onClick={generateFanPhoto}
               disabled={isGenerating || !userPhoto}
               className="w-full py-5 bg-[#00A19B] rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-20 disabled:pointer-events-none shadow-lg shadow-[#00A19B]/20"
             >
@@ -116,11 +148,11 @@ const App = () => {
         ) : (
           <div className="space-y-6 animate-in fade-in zoom-in duration-500">
             <div className="relative rounded-3xl overflow-hidden border-2 border-[#00A19B]">
-                <img src={imageUrl} className="w-full h-auto" alt="Generated" />
+              <img src={imageUrl} className="w-full h-auto" alt="Generated" />
             </div>
-            <button 
-                onClick={() => {setImageGenerated(false); setImageUrl(null);}} 
-                className="w-full py-4 bg-white/10 rounded-2xl flex items-center justify-center gap-3 font-bold hover:bg-white/20 transition-all"
+            <button
+              onClick={() => { setImageGenerated(false); setImageUrl(null); }}
+              className="w-full py-4 bg-white/10 rounded-2xl flex items-center justify-center gap-3 font-bold hover:bg-white/20 transition-all"
             >
               <RefreshCw size={20} /> Попробовать другое фото
             </button>
@@ -133,9 +165,9 @@ const App = () => {
           </div>
         )}
       </div>
-      
+
       <footer className="mt-12 text-gray-600 text-[10px] uppercase tracking-[0.3em]">
-        Powered by Gemini 3 Flash & Mercedes F1 Fan Spirit
+        Powered by Gemini Image & Mercedes F1 Fan Spirit
       </footer>
     </div>
   );
